@@ -42,6 +42,7 @@ def process(trans: list[dict], period: str, month: int, existing_ids: list[str] 
             not_correct_month.append(transaction.legId)
             continue
         transactions.append(transaction)
+        existing_ids.append(transaction.legId)
     count_success = len(transactions)
     Logging.log_process(duplicates, not_correct_month, count_all, count_success)
     return [t.__dict__ for t in transactions], count_success

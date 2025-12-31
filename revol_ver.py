@@ -1,9 +1,10 @@
 import argparse
 from logging import Logger
 from pathlib import Path
+import json
 
 from lib.outputs import OutputsDB, OutputsExcel, OutputsCsv
-from lib.models import TransactionModel
+from lib.models import TransactionModel, AuthData
 from lib.inputs import Inputs
 from lib.web_requests import WebRequests
 from lib.logg import Logging
@@ -16,26 +17,26 @@ def read_inputs(source: str, period: str, epoch: int) -> tuple[list[dict], int]:
     transactions: list = []
     count: int = 0
     if source == 'web_request':
-        found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data(abs_root_path)
-        if not found:
+        auth_data: AuthData | None = Inputs.get_auth_data(abs_root_path)
+        if not auth_data:
             return transactions, count
+            
         if period == 'month':
-            transactions = WebRequests.get_monthly_transactions(cookie=cookie,
-                                                                device_id=device_id,
-                                                                pocket_id=pocket_id,
-                                                                wallet_id=wallet_id,
-                                                                account_type=account_type,
+            transactions = WebRequests.get_monthly_transactions(auth_data,                                                                                                                                                                                                                                                                
                                                                 epoch=epoch)
         elif period == 'all':
-            transactions = WebRequests.get_all_transactions(cookie=cookie,
-                                                            device_id=device_id,
-                                                            pocket_id=pocket_id,
-                                                            wallet_id=wallet_id,
+            transactions = WebRequests.get_all_transactions(auth_data,
                                                             account_type=account_type)
     elif source == 'file':
         transactions = Inputs.read_json_file(abs_root_path, 'rev.json')
     count = len(transactions)
     return transactions, count
+
+def id_to_custom_category(custom_categories_map: dict, cat: str) -> str:
+    'Translates custom category UUID to category defined in config.ini'
+    if len(cat.split('-')) != 5:   # detects uuid
+        return cat
+    return custom_categories_map.get(cat)
 
 def process(trans: list[dict], period: str, month: int, existing_ids: list[str] = None) -> tuple[list[dict], int]:
     if existing_ids is None:
@@ -44,7 +45,15 @@ def process(trans: list[dict], period: str, month: int, existing_ids: list[str] 
     duplicates = []
     transactions = []
     not_correct_month = []
+    custom_categories_map = Inputs.get_ini_config('custom.categories')
     for t in trans:
+        if pretty_cat := id_to_custom_category(custom_categories_map, 
+                                               cat=t['category']):
+            logger.debug(f'Resolved category ID {t["category"]} to {pretty_cat}')
+            t['category'] = pretty_cat
+        else:
+            raise Exception(f'\nCategory with ID {t["category"]} was not found. Full transaction:\n{json.dumps(t, indent=4)}')
+
         transaction = TransactionModel(**t)
         if transaction.legId in existing_ids:
             duplicates.append(transaction.legId)

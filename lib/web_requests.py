@@ -1,5 +1,6 @@
 import requests
 from .inputs import Inputs
+from .models import AuthData
 from datetime import datetime
 import logging
 import sys
@@ -9,7 +10,7 @@ logger = logging.getLogger('revol_ver')
 class WebRequests:
 
     @classmethod
-    def fetch_trans(cls, cookie: str, device_id: str, pocket_id:str = '', wallet_id: str = '', account_type: str = '', to_param: int = 0) -> list[dict]:
+    def fetch_trans(cls, auth_data: AuthData, to_param: int = 0) -> list[dict]:
         '''
         Simulates a request made by Revolut web app
         '''
@@ -20,22 +21,22 @@ class WebRequests:
         }
 
         referer_account_param = ''
-        if wallet_id:
-            params["walletId"] = wallet_id
-            referer_account_param = f'walletId={wallet_id}'
-            if pocket_id: # If both walletId and pocketId are present, add pocketId to referer
-                referer_account_param += f'&pocketId={pocket_id}'
-        elif pocket_id:
-            params["internalPocketId"] = pocket_id
-            referer_account_param = f'accountId={pocket_id}'
+        if auth_data.wallet_id:
+            params["walletId"] = auth_data.wallet_id
+            referer_account_param = f'walletId={auth_data.wallet_id}'
+            if auth_data.pocket_id: # If both walletId and pocketId are present, add pocketId to referer
+                referer_account_param += f'&pocketId={auth_data.pocket_id}'
+        elif auth_data.pocket_id:
+            params["internalPocketId"] = auth_data.pocket_id
+            referer_account_param = f'accountId={auth_data.pocket_id}'
 
 
         if to_param != 0:
             params['to'] = to_param
 
         referer_base = 'https://app.revolut.com/home'
-        if account_type:
-            referer_base += f'?accountType={account_type}&{referer_account_param}'
+        if auth_data.account_type:
+            referer_base += f'?accountType={auth_data.account_type}&{referer_account_param}'
         elif referer_account_param:
             referer_base += f'?{referer_account_param}'
 
@@ -43,7 +44,7 @@ class WebRequests:
         headers = {
             'accept': 'application/json, text/plain, */*',
             'accept-language': 'en-US,en;q=0.9,sl;q=0.8',
-            'cookie': cookie,
+            'cookie': auth_data.cookie,
             'priority': 'u=1, i',
             'referer': referer_base,
             'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Microsoft Edge";v="126"',
@@ -56,7 +57,7 @@ class WebRequests:
             'x-browser-application': 'WEB_CLIENT',
             'x-client-geo-location': '41.056946,11.505751',
             'x-client-version': '100.0',
-            'x-device-id': device_id
+            'x-device-id': auth_data.device_id
         }
 
         logger.debug(f'Headers used for fetch:\n{headers}')
@@ -68,12 +69,12 @@ class WebRequests:
         return response
 
     @classmethod
-    def get_monthly_transactions(cls, cookie: str, device_id: str, epoch: int, pocket_id:str = '', wallet_id: str = '', account_type: str = '') -> list[dict]:
+    def get_monthly_transactions(cls, auth_data: AuthData, epoch:int) -> list[dict]:
         logger.info('Fetching monthly transactions')
-        return cls.fetch_trans(cookie=cookie, device_id=device_id, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type, to_param=epoch)
+        return cls.fetch_trans(auth_data, to_param=epoch)
 
     @classmethod
-    def get_all_transactions(cls, cookie: str, device_id: str, pocket_id:str = '', wallet_id: str = '', account_type: str = '') -> list[dict]:
+    def get_all_transactions(cls, auth_data: AuthData, epoch:int) -> list[dict]:
         '''
         Revolut will take epoch and return certain number of results BEFORE this date.
         This function generates epochs for each month and fetches transactions
@@ -81,7 +82,7 @@ class WebRequests:
         transactions = []
         logger.info('Fetching all transactions')
         for epoch in cls.generate_dates():
-            transactions += cls.fetch_trans(cookie=cookie, device_id=device_id, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type, to_param=epoch)
+            transactions += cls.fetch_trans(auth_data, to_param=epoch)
         return transactions
 
     @classmethod

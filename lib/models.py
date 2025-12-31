@@ -2,10 +2,8 @@ import logging
 from pydantic import BaseModel, Field, field_validator, AliasPath
 from typing import Optional
 from datetime import datetime
-from lib.inputs import Inputs
 
 logger = logging.getLogger('revol_ver')
-custom_categories_map = Inputs.get_ini_config('custom.categories')
 
 class TransactionModel(BaseModel):
     '''
@@ -43,13 +41,9 @@ class TransactionModel(BaseModel):
             return dt
         logger.error(f'Cannot convert {epoch} to datetime obj')
 
-    @field_validator('category', mode='before')
-    def id_to_custom_category(cls, cat: str, trans: dict) -> str:
-        'Translates custom category UUID to category defined in config.ini'
-        if len(cat.split('-')) != 5:   # detects uuid
-            return cat
-        pretty_cat = custom_categories_map.get(cat)
-        if not pretty_cat:
-            raise Exception(f'\nCategory with ID {cat} was not found. Full transaction:\n{str(trans)}')
-        logger.debug(f'Resolved category ID {cat} to {pretty_cat}')
-        return pretty_cat
+class AuthData(BaseModel):
+    cookie: str
+    device_id: str
+    pocket_id: str = ''
+    wallet_id: str = ''
+    account_type: str = ''

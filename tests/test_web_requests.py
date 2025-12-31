@@ -2,14 +2,19 @@ import pytest
 import requests
 import sys
 from lib.web_requests import WebRequests
+from lib.models import AuthData
 
 def test_fetch_trans_success(mocker):
     mock_response = mocker.Mock()
     mock_response.json.return_value = [{'id': 't1'}]
     mocker.patch('requests.get', return_value=mock_response)
+    # Test with to_param and account_type to cover lines 34 and 38
+    auth_data = AuthData(cookie='c', device_id='d', wallet_id='w1', pocket_id='', account_type='')
+    res = WebRequests.fetch_trans(auth_data, to_param=123)
     
     # Test with to_param and account_type to cover lines 34 and 38
-    res = WebRequests.fetch_trans(cookie='c', device_id='d', wallet_id='w1', account_type='personal', to_param=123)
+    auth_data = AuthData(cookie='c', device_id='d', wallet_id='w1', account_type='personal')
+    res = WebRequests.fetch_trans(auth_data, to_param=123)
     assert res == [{'id': 't1'}]
     
     args, kwargs = requests.get.call_args
@@ -21,7 +26,8 @@ def test_fetch_trans_pocket_id(mocker):
     mock_response.json.return_value = []
     mocker.patch('requests.get', return_value=mock_response)
     
-    WebRequests.fetch_trans(cookie='c', device_id='d', pocket_id='p1')
+    auth_data = AuthData(cookie='c', device_id='d', pocket_id='p1')
+    WebRequests.fetch_trans(auth_data)
     args, kwargs = requests.get.call_args
     assert kwargs['params']['internalPocketId'] == 'p1'
     assert 'accountId=p1' in kwargs['headers']['referer']
@@ -31,7 +37,8 @@ def test_fetch_trans_both_ids(mocker):
     mock_response.json.return_value = []
     mocker.patch('requests.get', return_value=mock_response)
     
-    WebRequests.fetch_trans(cookie='c', device_id='d', pocket_id='p1', wallet_id='w1')
+    auth_data = AuthData(cookie='c', device_id='d', pocket_id='p1', wallet_id='w1')
+    WebRequests.fetch_trans(auth_data)
     args, kwargs = requests.get.call_args
     assert 'walletId=w1&pocketId=p1' in kwargs['headers']['referer']
 
@@ -40,16 +47,18 @@ def test_fetch_trans_failure(mocker):
     mock_response.json.return_value = {'error': 'unauthorized'}
     mocker.patch('requests.get', return_value=mock_response)
     mocker.patch('sys.exit', side_effect=SystemExit(1))
-    
+    auth_data = AuthData(cookie='c', device_id='d')
     with pytest.raises(SystemExit):
-        WebRequests.fetch_trans(cookie='c', device_id='d')
+        WebRequests.fetch_trans(auth_data)
 
 def test_get_monthly_transactions(mocker):
     # Don't mock fetch_trans here to get coverage if we want, 
     # but we already covered it in test_fetch_trans_success
     mock_fetch = mocker.patch('lib.web_requests.WebRequests.fetch_trans', return_value=[])
-    WebRequests.get_monthly_transactions('c', 'd', 123456)
-    mock_fetch.assert_called_with(cookie='c', device_id='d', pocket_id='', wallet_id='', account_type='', to_param=123456)
+    auth_data = AuthData(cookie='c', device_id='d')
+    WebRequests.get_monthly_transactions(auth_data, 123456)
+    auth_data = AuthData(cookie='c', device_id='d', pocket_id='', wallet_id='', account_type='')
+    mock_fetch.assert_called_with(auth_data, to_param=123456)
 
 def test_generate_dates(mocker):
     mocker.patch('lib.inputs.Inputs.get_ini_config', return_value={'allimportlookbackyears': '1'})

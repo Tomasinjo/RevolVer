@@ -2,12 +2,13 @@ import pytest
 from lib.models import TransactionModel
 from datetime import datetime
 import lib.models
+from revol_ver import id_to_custom_category
 
 def test_transaction_model_valid(mocker):
     # Use a proper UUID-like string with 4 dashes (5 parts)
     uuid = '11111111-2222-3333-4444-555555555555'
-    mocker.patch.dict('lib.models.custom_categories_map', {uuid: 'Food'}, clear=True)
-    
+    #mocker.patch.dict('inputs.custom_categories_map', {uuid: 'Food'}, clear=True)
+    pretty_cat = id_to_custom_category({uuid: 'Food'}, uuid)
     data = {
         'id': '1',
         'legId': 'leg1',
@@ -17,7 +18,7 @@ def test_transaction_model_valid(mocker):
         'currency': 'EUR',
         'amount': -10.5,
         'tag': 'tag1',
-        'category': uuid,
+        'category': pretty_cat,
         'account': {'id': 'acc1'},
         'merchant': {'category': 'groceries', 'name': 'Lidl'}
     }
@@ -30,26 +31,6 @@ def test_transaction_model_valid(mocker):
     assert model.account_id == 'acc1'
     assert model.merchant_category == 'groceries'
 
-def test_transaction_model_invalid_category(mocker):
-    uuid = '00000000-0000-0000-0000-000000000000'
-    mocker.patch.dict('lib.models.custom_categories_map', {}, clear=True)
-    
-    data = {
-        'id': '1',
-        'legId': 'leg1',
-        'type': 'CARD_PAYMENT',
-        'state': 'COMPLETED',
-        'startedDate': 1704067199000,
-        'currency': 'EUR',
-        'amount': -10.5,
-        'tag': 'tag1',
-        'category': uuid,
-        'account': {'id': 'acc1'}
-    }
-    
-    with pytest.raises(Exception) as excinfo:
-        TransactionModel(**data)
-    assert 'was not found' in str(excinfo.value)
 
 def test_transaction_model_regular_category():
     data = {

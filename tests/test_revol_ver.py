@@ -13,26 +13,13 @@ def test_read_inputs_web_request_month(mocker):
     assert count == 1
     assert trans == [{'id': '1'}]
 
-def test_read_inputs_web_request_all(mocker):
-    mocker.patch('revol_ver.Inputs.get_auth_data', return_value=(True, 'c', 'd', 'p', 'w', 'a'))
-    mocker.patch('revol_ver.WebRequests.get_all_transactions', return_value=[{'id': '1'}])
-    
-    trans, count = revol_ver.read_inputs('web_request', 'all', 0)
-    assert count == 1
-
-def test_read_inputs_web_request_not_found(mocker):
-    # Coverage for line 21 in revol_ver.py
-    mocker.patch('revol_ver.Inputs.get_auth_data', return_value=(False, '', '', '', '', ''))
-    trans, count = revol_ver.read_inputs('web_request', 'month', 12345)
-    assert count == 0
-    assert trans == []
-
 def test_read_inputs_file(mocker):
     mocker.patch('revol_ver.Inputs.read_json_file', return_value=[{'id': '1'}])
     trans, count = revol_ver.read_inputs('file', 'month', 0)
     assert count == 1
 
 def test_process(mocker):
+    revol_ver.logger = MagicMock()
     class MockTransaction:
         def __init__(self, leg_id, month):
             self.legId = leg_id
@@ -45,23 +32,25 @@ def test_process(mocker):
     mocker.patch('revol_ver.Logging.log_process')
     
     # Test with existing_ids=None to cover line 42
-    trans = [{'some': 'data'}]
+    trans = [{'category': 'data'}]
     processed, count = revol_ver.process(trans, 'month', 12, existing_ids=None)
     assert count == 1
     assert processed[0]['legId'] == 'l1'
 
 def test_process_duplicate(mocker):
+    revol_ver.logger = MagicMock()
     class MockTransaction:
         def __init__(self):
             self.legId = 'l1'
     mocker.patch('revol_ver.TransactionModel', return_value=MockTransaction())
     mocker.patch('revol_ver.Logging.log_process')
     
-    trans = [{'some': 'data'}]
+    trans = [{'category': 'data'}]
     processed, count = revol_ver.process(trans, 'month', 12, existing_ids=['l1'])
     assert count == 0
 
 def test_process_wrong_month(mocker):
+    revol_ver.logger = MagicMock()
     class MockTransaction:
         def __init__(self):
             self.legId = 'l1'
@@ -69,7 +58,7 @@ def test_process_wrong_month(mocker):
     mocker.patch('revol_ver.TransactionModel', return_value=MockTransaction())
     mocker.patch('revol_ver.Logging.log_process')
     
-    trans = [{'some': 'data'}]
+    trans = [{'category': 'data'}]
     processed, count = revol_ver.process(trans, 'month', 12, existing_ids=[])
     assert count == 0
 

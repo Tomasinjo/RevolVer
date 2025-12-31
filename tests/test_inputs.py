@@ -30,45 +30,45 @@ def test_month_to_epoch_invalid_format():
 
 def test_get_auth_data_from_curl_personal():
     curl_content = Path('tests/curlcmd_personal.txt').read_text()
-    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data_from_curl(curl_content)
-    assert found is True
-    assert pocket_id == '7b46c548-f696-4dd4-832b-3aefb424856c'
-    assert account_type == ''
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data
+    assert auth_data.pocket_id == '7b46c548-f696-4dd4-832b-3aefb424856c'
+    assert auth_data.account_type == ''
 
 def test_get_auth_data_from_curl_joint():
     curl_content = Path('tests/curlcmd_joint.txt').read_text()
-    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data_from_curl(curl_content)
-    assert found is True
-    assert wallet_id == 'a87f1ba3-2225-464d-8b43-f2b5c63dd164'
-    assert account_type == 'joint'
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data
+    assert auth_data.wallet_id == 'a87f1ba3-2225-464d-8b43-f2b5c63dd164'
+    assert auth_data.account_type == 'joint'
 
 def test_get_auth_data_from_curl():
     curl_content = "curl 'https://app.revolut.com/api/transactions/last?walletId=w1' -H 'Cookie: c1' -H 'x-device-id: d1' -H 'referer: https://app.revolut.com/?accountType=joint'"
-    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data_from_curl(curl_content)
-    assert found is True
-    assert cookie == 'c1'
-    assert account_type == 'joint'
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data
+    assert auth_data.cookie == 'c1'
+    assert auth_data.account_type == 'joint'
 
 def test_get_auth_data_from_curl_windows(mocker):
     curl_content = 'curl "https://app.revolut.com/api/transactions/last?internalPocketId=p1" ^\n -H "Cookie: c1" ^\n -H "x-device-id: d1"'
-    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data_from_curl(curl_content)
-    assert found is True
-    assert cookie == 'c1'
-    assert pocket_id == 'p1'
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data
+    assert auth_data.cookie == 'c1'
+    assert auth_data.pocket_id == 'p1'
 
 def test_get_auth_data_from_curl_no_url():
-    found, *args = Inputs.get_auth_data_from_curl("no curl here")
-    assert found is False
+    auth_data = Inputs.get_auth_data_from_curl("no curl here")
+    assert auth_data is None
 
 def test_get_auth_data_from_curl_missing_data():
     curl_content = "curl 'https://example.com'" 
-    found, *args = Inputs.get_auth_data_from_curl(curl_content)
-    assert found is False
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data is None
 
 def test_get_auth_data_from_curl_linux_fallback():
     curl_content = "curl 'https://example.com?walletId=w1' -b 'c1' -H 'x-device-id: d1'"
-    found, cookie, *args = Inputs.get_auth_data_from_curl(curl_content)
-    assert cookie == 'c1'
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data.cookie == 'c1'
 
 def test_get_auth_data_from_har(mocker):
     mock_har = {
@@ -92,16 +92,16 @@ def test_get_auth_data_from_har(mocker):
         }
     }
     mocker.patch('lib.inputs.Inputs.read_json_file', return_value=mock_har)
-    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data_from_har(Path('.'))
-    assert found is True
-    assert pocket_id == 'p1'
-    assert account_type == 'personal'
+    auth_data = Inputs.get_auth_data_from_har(Path('.'))
+    assert auth_data
+    assert auth_data.pocket_id == 'p1'
+    assert auth_data.account_type == 'personal'
 
 def test_get_auth_data_from_har_no_match(mocker):
     mock_har = {"log": {"entries": []}}
     mocker.patch('lib.inputs.Inputs.read_json_file', return_value=mock_har)
-    found, *args = Inputs.get_auth_data_from_har(Path('.'))
-    assert found is False
+    auth_data = Inputs.get_auth_data_from_har(Path('.'))
+    assert auth_data is None
 
 def test_read_json_file(tmp_path):
     consume_dir = tmp_path / 'consume'
@@ -120,8 +120,8 @@ def test_read_json_file_not_found(tmp_path, mocker):
 def test_get_auth_data_curl_success(tmp_path, mocker):
     curl_file = tmp_path / 'curlcmd.txt'
     curl_file.write_text("curl 'https://example.com?walletId=w1' -H 'Cookie: c1' -H 'x-device-id: d1'")
-    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data(tmp_path)
-    assert found is True
+    auth_data = Inputs.get_auth_data(tmp_path)
+    assert auth_data
 
 def test_get_auth_data_har_fallback(tmp_path, mocker):
     # This triggers the failure case in read_json_file when HAR is not found

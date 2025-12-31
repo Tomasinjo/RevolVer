@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "revol-ver"
+version = "0.1.0"
+description = "Revolut transaction exporter"
+readme = "readme.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic==2.8.2",
+    "pandas==2.2.2",
+    "requests==2.31.0",
+    "openpyxl>=3.0.10",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-mock",
+    "pytest-cov",
+]
+
+[project.scripts]
+revol-ver = "revol_ver:run"
+
+[tool.setuptools]
+packages = ["lib"]
+py-modules = ["revol_ver"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

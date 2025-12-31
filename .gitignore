@@ -11,3 +11,8 @@ lib/__pycache__/
 
 *.pyc
 .coverage
+
+# Build and distribution
+build/
+dist/
+*.egg-info/

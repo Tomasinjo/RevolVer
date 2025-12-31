@@ -1,0 +1,5 @@
+curl 'https://app.revolut.com/api/retail/user/current/transactions/last?count=50&internalPocketId=7b46c548-f696-4dd4-832b-3aefb424856c' \
+  -H 'accept: application/json, text/plain, */*' \
+  -b 'revo_device_id=test_device_id; credentials=test_credentials; refresh-token=test_refresh_token; test_cookie' \
+  -H 'referer: https://app.revolut.com/home' \
+  -H 'x-device-id: test_device_id' \

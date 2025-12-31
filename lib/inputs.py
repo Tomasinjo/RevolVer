@@ -45,7 +45,9 @@ class Inputs:
                     ])
                     if content_commentless.startswith('curl'):
                         logger.info('Detected curl command in curlcmd.txt')
-                        return cls.get_auth_data_from_curl(curl_content=content_commentless)
+                        found, cookie, device_id, pocket_id, wallet_id, account_type = cls.get_auth_data_from_curl(curl_content=content_commentless)
+                        if found: # IMPORTANT: Return here if successful
+                            return found, cookie, device_id, pocket_id, wallet_id, account_type
 
             except Exception as e:
                 logger.warning(f'Error reading curlcmd.txt: {e}')
@@ -61,7 +63,7 @@ class Inputs:
         # Remove all ^ characters (Windows CMD line continuation)
         curl_content = curl_content.replace('^\\^"', '"')
         curl_content = curl_content.replace('^"', "'")
-        curl_content = curl_content.replace(' ^', '')
+        curl_content = re.sub(r'\^\s+', '', curl_content)
         
         cookie: str = ''
         device_id: str = ''
@@ -87,18 +89,18 @@ class Inputs:
 
         # Extract cookie data using -b flag (takes precedence over -H Cookie)
         # cookie = re.compile(r"-b\s+'([^']+)" )
-        if cookie_match := re.search(r"-b\s+'([^']+)'", curl_content):
+        if cookie_match := re.search(r"-b\s+['\"]([^'\"]+)['\"]", curl_content):
             cookie = cookie_match.group(1)
-        elif cookie_match := re.search(r"'Cookie:\s+([^']+)", curl_content): # fallback for linux/firefox combo
+        elif cookie_match := re.search(r"['\"]Cookie:\s+([^'\"]+)", curl_content, re.IGNORECASE): # fallback for linux/firefox combo
             cookie = cookie_match.group(1)
 
         # Extract device_id from -H headers
-        device_id_match = re.search(r"x-device-id:\s+([^']+)", curl_content)
+        device_id_match = re.search(r"x-device-id:\s+([^'\"]+)", curl_content, re.IGNORECASE)
         if device_id_match:
-            device_id = device_id_match.group(1)
+            device_id = device_id_match.group(1).strip()
 
         # Extract accountType from referer header
-        referer_match = re.search(r"referer:\s+'[^?]+\?accountType=([^&]+)", curl_content)
+        referer_match = re.search(r"referer:\s+[^?]+\?accountType=([^&'\s]+)", curl_content)
         if referer_match:
             account_type = referer_match.group(1)
         
@@ -195,17 +197,18 @@ class Inputs:
         '''
         message = ''
         epoch = 0
+        month = 0
         try:
             year, month = i.split('.')
             month_i = int(month)
             year_i = int(year)
         except:
             message = '"{i}" is not in valid format (YYYY.MM)!'
-            return message, epoch
+            return message, epoch, 0
         res = calendar.monthrange(year_i, month_i)
         last_day = res[1]
         dt_last_day = datetime(year_i, month_i, last_day, 23, 59, 59)
-        return message, int(dt_last_day.timestamp()) * 1000, month_i
+        return message, int(calendar.timegm(dt_last_day.utctimetuple())) * 1000, month_i
 
     @staticmethod
     def get_ini_config(cat: str) -> dict:

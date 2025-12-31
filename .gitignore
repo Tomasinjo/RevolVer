@@ -8,3 +8,6 @@ consume/**.har
 trans_db.sql
 
 lib/__pycache__/
+
+*.pyc
+.coverage

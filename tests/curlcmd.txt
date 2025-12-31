@@ -1,0 +1,6 @@
+curl 'https://app.revolut.com/api/retail/user/current/transactions/last?count=50&walletId=a87f1ba3-2225-464d-8b43-f2b5c63dd164' 
+  -H 'accept: application/json, text/plain, */*' 
+  -H 'accept-language: it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7,zh-CN;q=0.6,zh;q=0.5' 
+  -b 'test_cookie' 
+  -H 'referer: https://app.revolut.com/home?accountType=joint&walletId=a87f1ba3-2225-464d-8b43-f2b5c63dd164&pocketId=6326407b-01da-4096-a42d-1d6ce8a7806c' 
+  -H 'x-device-id: test_device_id'

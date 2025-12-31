@@ -8,6 +8,7 @@ from lib.inputs import Inputs
 from lib.web_requests import WebRequests
 from lib.logg import Logging
 
+abs_root_path = Path(__file__).parent
 logger: Logger
 
 
@@ -98,7 +99,10 @@ def main() -> None:
         return
     write_outputs(transactions, options, db_output, options.filename)
 
-if __name__ == '__main__':
-    abs_root_path = Path(__file__).parent
+def run() -> None:
+    global logger
     logger = Logging.setup_logging()
     main()
+
+if __name__ == '__main__':  # pragma: no cover
+    run()

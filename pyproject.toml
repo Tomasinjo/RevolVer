@@ -31,3 +31,4 @@ py-modules = ["revol_ver"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov"

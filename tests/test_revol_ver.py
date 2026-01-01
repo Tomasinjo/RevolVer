@@ -13,6 +13,20 @@ def test_read_inputs_web_request_month(mocker):
     assert count == 1
     assert trans == [{'id': '1'}]
 
+def test_read_inputs_no_auth_data(mocker):
+    mocker.patch('revol_ver.Inputs.get_auth_data', return_value=None)
+    trans, count = revol_ver.read_inputs('web_request', 'month', 12345)
+    assert count == 0
+    assert trans == []
+
+def test_read_inputs_web_request_all(mocker):
+    mocker.patch('revol_ver.Inputs.get_auth_data', return_value=(True, 'c', 'd', 'p', 'w', 'a'))
+    mocker.patch('revol_ver.WebRequests.get_all_transactions', return_value=[{'id': '1'}, {'id': '2'}])
+    
+    trans, count = revol_ver.read_inputs('web_request', 'all', 0)
+    assert count == 2
+    assert trans == [{'id': '1'}, {'id': '2'}]
+
 def test_read_inputs_file(mocker):
     mocker.patch('revol_ver.Inputs.read_json_file', return_value=[{'id': '1'}])
     trans, count = revol_ver.read_inputs('file', 'month', 0)
@@ -36,6 +50,23 @@ def test_process(mocker):
     processed, count = revol_ver.process(trans, 'month', 12, existing_ids=None)
     assert count == 1
     assert processed[0]['legId'] == 'l1'
+
+def test_process_category_not_found(mocker):
+    revol_ver.logger = MagicMock()
+    mocker.patch('revol_ver.Inputs.get_ini_config', return_value={})
+    trans = [{'category': 'unknown-uuid-format-but-treated-as-id'}]
+    # We need to simulate id_to_custom_category returning None (which it does if map.get returns None)
+    # id_to_custom_category implementation:
+    # if len(cat.split('-')) != 5: return cat
+    # return custom_categories_map.get(cat)
+    
+    # If we pass something that looks like UUID (5 parts), it will try to look up.
+    # 'a-b-c-d-e' has 5 parts.
+    trans = [{'category': 'a-b-c-d-e'}]
+    
+    with pytest.raises(Exception) as excinfo:
+        revol_ver.process(trans, 'month', 12)
+    assert "Category with ID a-b-c-d-e was not found" in str(excinfo.value)
 
 def test_process_duplicate(mocker):
     revol_ver.logger = MagicMock()

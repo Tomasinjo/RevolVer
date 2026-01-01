@@ -2,11 +2,19 @@
 
 Revolut doesn't provide an option to export transactions with custom categories directly. This script replicates the HTTP requests made by the Revolut web application to retrieve transaction data, and export it to SQLite and/or Excel file.
 
+### RevolVer
+
+Revolut doesn't provide an option to export transactions with custom categories directly. This script replicates the HTTP requests made by the Revolut web application to retrieve transaction data, and export it to SQLite and/or Excel file.
+
 ### Installation
 
 1. Clone this project  
-2. Install required packages  
-`pip install -r .\requirements.txt`
+2. Install the package:
+   ```bash
+   pip install .
+   ```
+   *Alternatively, you can still install dependencies from `requirements.txt`:*  
+   `pip install -r requirements.txt`
 
 ### Requirements
 Before each usage, authentication data must be provided. The script supports two methods:
@@ -14,66 +22,55 @@ Before each usage, authentication data must be provided. The script supports two
 #### Method 1: Copy as cURL (Recommended)
 1. Go to https://app.revolut.com and login.
 2. Open developer tools by pressing F12.
-3. Click on "See all" transactions:  
-<img src="screenshots/select_all_transactions.png" width="500">
-
-4. In the Network tab, find the request to `transactions/last` endpoint, right-click it and select "Copy > Copy as cURL (bash)" or "Copy as cURL (cmd)":  
+3. Click on "See all" transactions.
+4. In the Network tab, find the request to `transactions/last` endpoint, right-click it and select "Copy > Copy as cURL (bash)" or "Copy as cURL (cmd)".
 5. Paste the copied curl command into `curlcmd.txt` file in the root directory.
 6. Proceed by running the script right away as the authentication data tend to expire fast.
+
+**Note on Joint Accounts:** Joint accounts are supported via the cURL method. The script will automatically detect the `accountType=joint` and `walletId` from the cURL command.
 
 #### Method 2: HAR file (Legacy)
 Alternatively, you can export a HAR file from Revolut web application and save it to `consume/` directory as `app.revolut.com.har`. The script will automatically detect and use it if `curlcmd.txt` is not present.
 
-1. Go to https://app.revolut.com and login.
-2. Open developer tools by pressing F12.   
-3. Click on "See all" transactions:  
-<img src="screenshots/select_all_transactions.png" width="500">
-
-4. In developer tools, go to Network tab and export HAR:  
-<img src="screenshots/export_har.png" width="500">
-
-** NOTE: As of 30 September 2024, Chromium-based browsers (Chrome, Edge, etc) [by default will not include all required headers when exporting HAR file](https://developer.chrome.com/blog/new-in-devtools-130). If you don't see option "Export HAR (with sensitive data)", make sure to enable it in settings else the script will fail with `ERROR - Could not find authentication data from HAR file` **  
-
-4.a. Enable "Export HAR (with sensitive data)" in Edge (it's similar with other Chromium-based browsers as well):  
-<img src="screenshots/enable_sensitive_har.png" width="600">
-
-Now you can long-press Download button to reveal option "Export HAR (with sensitive data)"  
-
-5. Save the file "app.revolut.com.har" to `consume/` directory. Do not change the filename.  
-6. Proceed by running the script right away as the authentication data tend to expire fast.  
+*Note: HAR method currently does not support Joint accounts as reliably as cURL.*
 
 ### Usage
 
-At minimum, only `--date` must be provided to fetch results for single month and save them to both SQLite and Excel file:  
-`python revol_ver.py -d 2024.4`  
+If you installed the package, you can run it directly:
+```bash
+revol-ver -d 2024.4
+```
+
+Otherwise, run the script with:
+```bash
+python revol_ver.py -d 2024.4
+```
+
+At minimum, only `--date` must be provided to fetch results for single month and save them to both SQLite and Excel file.
 
 For initial export, you may want to export all records. Set `--period` to `all`. Also make sure to edit setting `AllImportLookBackYears` in config.ini to desired export period.  
-`python revol_ver.py -p all`  
+`revol-ver -p all`  
 
 By default, it will save the transactions to SQLite database with filename `trans_db.sql` and Excel file to `exports/` directory. Change this by setting `--output` to either `db` or `excel`.  
-`python revol_ver.py -p all -o excel` 
+`revol-ver -p all -o excel` 
 
-Once database is created, it will also be used for deduplication. It can be turned off with `-dd` flag, but only when output is set to `excel`.
+### Development
 
-Other command line arguments are mostly used for testing purposes. Use `--help` see all options:  
+This project uses `pytest` for testing and GitHub Actions for CI/CD.
 
-    python revol_ver.py -h
-    usage: revol_ver.py [-h] [-p {month,all}] [-s {web_request,file}] [-d DATE] [-o {db,excel,all}] [-dd]
+**Running tests locally:**
+```bash
+pip install .[test]
+pytest
+```
 
-    Saves transactions from Revolut to database or Excel
-
-    options:
-      -h, --help            show this help message and exit
-      -p {month,all}, --period {month,all}
-      -s {web_request,file}, --source {web_request,file}
-      -d DATE, --date DATE  Month and year (YYYY.MM), required for period "month"
-      -o {db,excel,all}, --output {db,excel,all}
-                            Output destinations
-      -dd, --dont_deduplicate
-                            Don't use database for deduplication
-
+**CI/CD:**
+A GitHub Action is configured to:
+1. Run the test suite on every push and pull request.
+2. Build and package the code into `dist/` artifacts.
 
 ### Common errors
+...
 
 1. **curl command or HAR file not found**  
 `FileNotFoundError: [Errno 2] No such file or directory: 'curlcmd.txt'`  

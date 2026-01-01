@@ -74,7 +74,7 @@ class WebRequests:
         return cls.fetch_trans(auth_data, to_param=epoch)
 
     @classmethod
-    def get_all_transactions(cls, auth_data: AuthData, epoch:int) -> list[dict]:
+    def get_all_transactions(cls, auth_data: AuthData) -> list[dict]:
         '''
         Revolut will take epoch and return certain number of results BEFORE this date.
         This function generates epochs for each month and fetches transactions

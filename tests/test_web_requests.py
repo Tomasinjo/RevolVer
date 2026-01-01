@@ -75,6 +75,6 @@ def test_get_all_transactions(mocker):
     mocker.patch('lib.web_requests.WebRequests.generate_dates', return_value=[1, 2])
     mock_fetch = mocker.patch('lib.web_requests.WebRequests.fetch_trans', side_effect=[[{'id': '1'}], [{'id': '2'}]])
     
-    res = WebRequests.get_all_transactions('c', 'd')
+    res = WebRequests.get_all_transactions('c')
     assert len(res) == 2
     assert mock_fetch.call_count == 2

@@ -25,8 +25,7 @@ def read_inputs(source: str, period: str, epoch: int) -> tuple[list[dict], int]:
             transactions = WebRequests.get_monthly_transactions(auth_data,                                                                                                                                                                                                                                                                
                                                                 epoch=epoch)
         elif period == 'all':
-            transactions = WebRequests.get_all_transactions(auth_data,
-                                                            account_type=account_type)
+            transactions = WebRequests.get_all_transactions(auth_data)
     elif source == 'file':
         transactions = Inputs.read_json_file(abs_root_path, 'rev.json')
     count = len(transactions)

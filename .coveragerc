@@ -1,0 +1,8 @@
+[run]
+source = 
+    lib
+    revol_ver
+
+[report]
+fail_under = 100
+show_missing = True

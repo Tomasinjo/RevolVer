@@ -56,6 +56,20 @@ def test_get_auth_data_from_curl_windows(mocker):
     assert auth_data.cookie == 'c1'
     assert auth_data.pocket_id == 'p1'
 
+def test_get_auth_data_from_curl_mixed_quotes():
+    # Test case for the bug fix: cookie contains double quotes but is wrapped in single quotes
+    curl_content = "curl 'https://example.com?walletId=w1' -b 'revo_hardware_id=abc; rwa_geo={\"lat\":1}' -H 'x-device-id: d1'"
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data
+    assert auth_data.cookie == 'revo_hardware_id=abc; rwa_geo={"lat":1}'
+
+def test_get_auth_data_from_curl_double_quotes_b_flag():
+    # Test case for -b with double quotes
+    curl_content = 'curl "https://example.com?walletId=w1" -b "cookie_val" -H "x-device-id: d1"'
+    auth_data = Inputs.get_auth_data_from_curl(curl_content)
+    assert auth_data
+    assert auth_data.cookie == 'cookie_val'
+
 def test_get_auth_data_from_curl_no_url():
     auth_data = Inputs.get_auth_data_from_curl("no curl here")
     assert auth_data is None

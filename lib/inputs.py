@@ -87,11 +87,13 @@ class Inputs:
 
         # Extract cookie data using -b flag (takes precedence over -H Cookie)
         # cookie = re.compile(r"-b\s+'([^']+)" )
-        if cookie_match := re.search(r"-b\s+['\"]([^'\"]+)['\"]", curl_content):
+        if cookie_match := re.search(r"-b\s+'([^']+)'", curl_content):
+            data["cookie"] = cookie_match.group(1)
+        elif cookie_match := re.search(r"-b\s+\"([^\"]+)\"", curl_content):
             data["cookie"] = cookie_match.group(1)
         elif cookie_match := re.search(r"[']Cookie:\s+([^']+)", curl_content, re.IGNORECASE): # fallback for linux/firefox combo
             data["cookie"] = cookie_match.group(1)
-        elif cookie_match := re.search(r"['\"]Cookie:\s+([^'\"]+)", curl_content, re.IGNORECASE): # fallback for linux/firefox combo
+        elif cookie_match := re.search(r"[\"]Cookie:\s+([^\"]+)", curl_content, re.IGNORECASE): # fallback for linux/firefox combo
             data["cookie"] = cookie_match.group(1)
 
         # Extract device_id from -H headers

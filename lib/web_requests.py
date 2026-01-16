@@ -65,6 +65,10 @@ class WebRequests:
             print('')
             logger.error(f'Fetching failed, got response\n{response}')
             sys.exit(1)
+        for t in response:
+            if "card" in t:
+                t["cardLastFour"] = t["card"].get("lastFour", "")
+                t["cardLabel"] = t["card"].get("label", "")
         return response
 
     @classmethod

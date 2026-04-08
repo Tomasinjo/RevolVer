@@ -1,10 +1,31 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 from lib.web_requests import WebRequests
 import sys
 from datetime import datetime
 
 class TestWebRequests:
+
+    def test_load_headers_from_curl(self):
+        curl_content = """curl 'https://app.revolut.com/api/retail/user/current/transactions/last?count=50' \\
+  -H 'accept: application/json, text/plain, */*' \\
+  -H 'accept-language: en-US,en;q=0.9' \\
+  -H 'priority: u=1, i' \\
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0' \\
+"""
+
+        with patch('builtins.open', mock_open(read_data=curl_content)):
+            headers = WebRequests.load_headers_from_curl()
+            assert len(headers) == 4
+            assert headers['accept'] == 'application/json, text/plain, */*'
+            assert headers['accept-language'] == 'en-US,en;q=0.9'
+            assert headers['priority'] == 'u=1, i'
+            assert headers['user-agent'] == 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0'
+
+    def test_load_headers_from_curl_file_not_found(self):
+        with patch('builtins.open', side_effect=FileNotFoundError):
+            headers = WebRequests.load_headers_from_curl()
+            assert headers == {}
 
     @patch('requests.get')
     def test_fetch_trans(self, mock_get):

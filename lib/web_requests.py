@@ -3,10 +3,39 @@ from .inputs import Inputs
 from datetime import datetime
 import logging
 import sys
+import re
+import os
 
 logger = logging.getLogger('revol_ver')
 
 class WebRequests:
+
+    @classmethod
+    def load_headers_from_curl(cls) -> dict:
+        '''
+        Parse headers from curlcmd.txt file
+        Returns a dictionary of headers extracted from the curl command
+        '''
+        curl_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'curlcmd.txt')
+        headers = {}
+
+        try:
+            with open(curl_file, 'r') as f:
+                content = f.read()
+
+            # Match all -H 'header-name: header-value' patterns
+            # Handles quoted values that may contain special characters
+            pattern = r"-H\s+'([^:]+):\s*(.+?)'\s*\\"
+            matches = re.findall(pattern, content)
+
+            for header_name, header_value in matches:
+                headers[header_name.strip()] = header_value.strip()
+
+            logger.debug(f'Loaded {len(headers)} headers from curlcmd.txt')
+            return headers
+        except FileNotFoundError:
+            logger.warning(f'curlcmd.txt not found at {curl_file}, using default headers')
+            return {}
 
     @classmethod
     def fetch_trans(cls, cookie: str, device_id: str, pocket_id:str = '', wallet_id: str = '', account_type: str = '', to_param: int = 0) -> list[dict]:
@@ -39,25 +68,13 @@ class WebRequests:
         elif referer_account_param:
             referer_base += f'?{referer_account_param}'
 
+        # Load headers from curlcmd.txt
+        headers = cls.load_headers_from_curl()
 
-        headers = {
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'en-US,en;q=0.9,sl;q=0.8',
-            'cookie': cookie,
-            'priority': 'u=1, i',
-            'referer': referer_base,
-            'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Microsoft Edge";v="126"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
-            'x-browser-application': 'WEB_CLIENT',
-            'x-client-geo-location': '41.056946,11.505751',
-            'x-client-version': '100.0',
-            'x-device-id': device_id
-        }
+        # Override with runtime parameters
+        headers['cookie'] = cookie
+        headers['referer'] = referer_base
+        headers['x-device-id'] = device_id
 
         logger.debug(f'Headers used for fetch:\n{headers}')
         response = requests.get(url, headers=headers, params=params, allow_redirects=True).json()

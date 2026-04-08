@@ -33,6 +33,8 @@ class TransactionModel(BaseModel):
     merchant_category: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'category'))
     merchant_name: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'name'))
     comment: Optional[str] = ''
+    cardLastFour: Optional[str] = ""
+    cardLabel: Optional[str] = ""
 
     @field_validator('startedDate', 'updatedDate', 'completedDate', 'createdDate', mode='before')
     def convert_started_date(cls, epoch: int) -> datetime:

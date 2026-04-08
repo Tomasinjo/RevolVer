@@ -1,0 +1,13 @@
+[run]
+branch = True
+source = .
+omit =
+    tests/*
+    .claude/*
+    consume/*
+    exports/*
+    htmlcov/*
+    screenshots/*
+
+[report]
+show_missing = True

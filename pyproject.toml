@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "revol_ver"
+version = "0.1.0"
+description = "Revolut transaction exporter"
+readme = "readme.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic",
+    "pandas",
+    "requests",
+    "openpyxl"
+]
+
+[tool.setuptools]
+py-modules = ["revol_ver"]
+packages = ["lib"]
+
+[project.scripts]
+revol_ver = "revol_ver:main"

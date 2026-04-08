@@ -98,7 +98,7 @@ def main() -> None:
         return
     write_outputs(transactions, options, db_output, options.filename)
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     abs_root_path = Path(__file__).parent
     logger = Logging.setup_logging()
     main()

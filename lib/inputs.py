@@ -201,7 +201,7 @@ class Inputs:
             year_i = int(year)
         except:
             message = '"{i}" is not in valid format (YYYY.MM)!'
-            return message, epoch
+            return message, epoch, 0
         res = calendar.monthrange(year_i, month_i)
         last_day = res[1]
         dt_last_day = datetime(year_i, month_i, last_day, 23, 59, 59)

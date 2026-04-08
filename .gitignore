@@ -1,10 +1,39 @@
-.idea/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
+# Build and Distribution
+build/
+dist/
+*.egg-info/
+
+# Testing and Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Environments
+.venv/
+venv/
+env/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Project Specific - Database & Config
+trans_db.sql
+curlcmd.txt
+
+# Project Specific - Inputs
+consume/**.har
+consume/*.json
+
+# Project Specific - Outputs
 exports/**.csv
 exports/**.xlsx
-
-consume/**.har
-
-trans_db.sql
-
-lib/__pycache__/

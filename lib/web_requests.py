@@ -97,7 +97,7 @@ class WebRequests:
         dates = []
         for y in range(start_year, end_year + 1):
             for m in range(1,13):
-                if y == end_year and m == end_month:
+                if y == end_year and m > end_month:
                     break
                 _, epoch, _ = Inputs.month_to_epoch(f'{y}.{m}')
                 dates.append(epoch)

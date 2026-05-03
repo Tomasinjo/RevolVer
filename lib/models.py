@@ -23,15 +23,27 @@ class TransactionModel(BaseModel):
     amount: float
     fee: Optional[float] = 0.0
     balance: Optional[float] = 0.0
+    amountWithCharges: Optional[float] = None
     description: Optional[str] = ''
+    reason: Optional[str] = ''
     tag: str
     category: str
     relatedTransactionId: Optional[str] = ''
     account_id: Optional[str] = Field(None, validation_alias=AliasPath('account', 'id'))
+    account_type: Optional[str] = Field(None, validation_alias=AliasPath('account', 'type'))
     countryCode: Optional[str] = ''
     rate: Optional[float] = None
     merchant_category: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'category'))
     merchant_name: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'name'))
+    merchant_mcc: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'mcc'))
+    merchant_scheme: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'scheme'))
+    merchant_city: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'city'))
+    merchant_country: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'country'))
+    merchant_state: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'state'))
+    merchant_postcode: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'postcode'))
+    merchant_address: Optional[str] = Field(None, validation_alias=AliasPath('merchant', 'address'))
+    counterpart_amount: Optional[float] = Field(None, validation_alias=AliasPath('counterpart', 'amount'))
+    counterpart_currency: Optional[str] = Field(None, validation_alias=AliasPath('counterpart', 'currency'))
     comment: Optional[str] = ''
     cardLastFour: Optional[str] = ""
     cardLabel: Optional[str] = ""

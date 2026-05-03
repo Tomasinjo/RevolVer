@@ -94,6 +94,53 @@ class TestTransactionModel:
             assert model.startedDate is None
             assert 'Cannot convert 0 to datetime obj' in caplog.text
 
+    def test_extracts_extended_fields(self):
+        # Mirrors a real CARD_PAYMENT response shape so we lock in extraction
+        # of fields beyond the legacy minimal set.
+        data = {
+            'id': '1', 'legId': 'leg1', 'type': 'CARD_PAYMENT', 'state': 'DECLINED',
+            'startedDate': 1672531200000, 'currency': 'EUR', 'amount': -66.0,
+            'amountWithCharges': -66.0, 'reason': 'insufficient_balance',
+            'tag': 'services', 'category': 'services',
+            'account': {'id': 'acc1', 'type': 'CURRENT'},
+            'merchant': {
+                'name': 'Google Cloud', 'category': 'services',
+                'mcc': '7399', 'scheme': 'MASTERCARD',
+                'city': 'Cc Google.com', 'country': 'IE', 'state': 'IE',
+                'postcode': 'D02 R296', 'address': 'D02 R296, Cc Google.com, IE',
+            },
+            'counterpart': {'amount': -66.0, 'currency': 'EUR'},
+        }
+        m = models.TransactionModel(**data)
+        assert m.amountWithCharges == -66.0
+        assert m.reason == 'insufficient_balance'
+        assert m.account_type == 'CURRENT'
+        assert m.merchant_mcc == '7399'
+        assert m.merchant_scheme == 'MASTERCARD'
+        assert m.merchant_city == 'Cc Google.com'
+        assert m.merchant_country == 'IE'
+        assert m.merchant_state == 'IE'
+        assert m.merchant_postcode == 'D02 R296'
+        assert m.merchant_address == 'D02 R296, Cc Google.com, IE'
+        assert m.counterpart_amount == -66.0
+        assert m.counterpart_currency == 'EUR'
+
+    def test_extended_fields_optional(self):
+        # Non-card-payment shapes (e.g. TOPUP) lack `merchant` and `counterpart`;
+        # the new fields must stay None rather than raise.
+        data = {
+            'id': '1', 'legId': 'leg1', 'type': 'TOPUP', 'state': 'COMPLETED',
+            'startedDate': 1672531200000, 'currency': 'EUR', 'amount': 100.0,
+            'tag': 'topup', 'category': 'topup',
+            'account': {'id': 'acc1'},
+        }
+        m = models.TransactionModel(**data)
+        assert m.merchant_city is None
+        assert m.counterpart_amount is None
+        assert m.account_type is None
+        assert m.amountWithCharges is None
+        assert m.reason == ''
+
     def test_non_uuid_category(self):
         data = {
             'id': '1',

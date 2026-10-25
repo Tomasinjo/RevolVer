@@ -107,18 +107,52 @@ class TestWebRequests:
         mock_fetch.assert_called_with(cookie='c', device_id='d', pocket_id='', wallet_id='', account_type='', to_param=12345)
 
     @patch('lib.web_requests.WebRequests.fetch_trans')
+    def test_fetch_month_pages_back_to_month_start(self, mock_fetch):
+        # July 2026; each page stops short of the 1st until the third
+        epoch = int(datetime(2026, 7, 31, 23, 59, 59).timestamp()) * 1000
+        day = lambda d: int(datetime(2026, 7, d, 12).timestamp()) * 1000
+        june = int(datetime(2026, 6, 30, 12).timestamp()) * 1000
+        mock_fetch.side_effect = [
+            [{'id': 'a', 'legId': 'a1', 'startedDate': day(20)}, {'id': 'b', 'legId': 'b1', 'startedDate': day(8)}],
+            [{'id': 'b', 'legId': 'b1', 'startedDate': day(8)}, {'id': 'c', 'legId': 'c1', 'startedDate': day(4)}],
+            [{'id': 'd', 'legId': 'd1', 'startedDate': day(1)}, {'id': 'e', 'legId': 'e1', 'startedDate': june}],
+        ]
+        trans = WebRequests.fetch_month('c', 'd', epoch)
+        assert [t['id'] for t in trans] == ['a', 'b', 'c', 'd', 'e']
+        assert [c.kwargs['to_param'] for c in mock_fetch.call_args_list] == [epoch, day(8), day(4)]
+
+    @patch('lib.web_requests.WebRequests.fetch_trans')
+    def test_fetch_month_stops_when_no_progress(self, mock_fetch):
+        epoch = int(datetime(2026, 7, 31, 23, 59, 59).timestamp()) * 1000
+        page = [{'id': 'a', 'legId': 'a1', 'startedDate': int(datetime(2026, 7, 20).timestamp()) * 1000}]
+        mock_fetch.return_value = page
+        trans = WebRequests.fetch_month('c', 'd', epoch)
+        assert trans == page
+        assert mock_fetch.call_count == 2
+
+    @patch('lib.web_requests.WebRequests.fetch_trans')
+    def test_fetch_month_without_dates(self, mock_fetch):
+        mock_fetch.return_value = [{'id': 'a'}]
+        assert WebRequests.fetch_month('c', 'd', 1785535199000) == [{'id': 'a'}]
+        assert mock_fetch.call_count == 1
+
+    @patch('lib.web_requests.WebRequests.fetch_trans')
+    def test_fetch_month_page_limit(self, mock_fetch):
+        epoch = int(datetime(2026, 7, 31, 23, 59, 59).timestamp()) * 1000
+        n = iter(range(10**6))
+        mock_fetch.side_effect = lambda **kw: [{'id': next(n), 'startedDate': kw['to_param'] - 1000}]
+        with patch.object(WebRequests, 'MAX_PAGES_PER_MONTH', 3):
+            trans = WebRequests.fetch_month('c', 'd', epoch)
+        assert len(trans) == 3
+
+    @patch('lib.web_requests.WebRequests.fetch_month')
     @patch('lib.web_requests.WebRequests.generate_dates')
     def test_get_all_transactions(self, mock_gen_dates, mock_fetch):
         mock_gen_dates.return_value = [1000, 2000]
-        mock_fetch.return_value = [{'id': 1}]
-        
+        mock_fetch.side_effect = [[{'id': 1, 'legId': 'x'}], [{'id': 1, 'legId': 'x'}, {'id': 2, 'legId': 'y'}]]
         trans = WebRequests.get_all_transactions('c', 'd')
-        # fetch_trans called twice. 
-        # returns [{'id':1}] each time.
-        # trans += ...
-        # Result should be [{'id':1}, {'id':1}]
-        assert len(trans) == 2
-        assert trans == [{'id': 1}, {'id': 1}]
+        # The same leg fetched for two months is kept once
+        assert trans == [{'id': 1, 'legId': 'x'}, {'id': 2, 'legId': 'y'}]
 
     def test_generate_dates(self):
         with patch('lib.inputs.Inputs.get_ini_config', return_value={'allimportlookbackyears': 1}):

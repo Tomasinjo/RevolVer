@@ -10,6 +10,8 @@ logger = logging.getLogger('revol_ver')
 
 class WebRequests:
 
+    MAX_PAGES_PER_MONTH = 50
+
     @classmethod
     def load_headers_from_curl(cls) -> dict:
         '''
@@ -112,7 +114,39 @@ class WebRequests:
     @classmethod
     def get_monthly_transactions(cls, cookie: str, device_id: str, epoch: int, pocket_id:str = '', wallet_id: str = '', account_type: str = '') -> list[dict]:
         logger.info('Fetching monthly transactions')
-        return cls.fetch_trans(cookie=cookie, device_id=device_id, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type, to_param=epoch)
+        return cls.fetch_month(cookie=cookie, device_id=device_id, epoch=epoch, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type)
+
+    @classmethod
+    def fetch_month(cls, cookie: str, device_id: str, epoch: int, pocket_id:str = '', wallet_id: str = '', account_type: str = '') -> list[dict]:
+        '''
+        Revolut returns a limited number of transactions per request (about 140,
+        whatever "count" asks for), so one request may not reach back to the start
+        of a busy month. Keep requesting older pages until the month is covered.
+        '''
+        last_day = datetime.fromtimestamp(epoch / 1000)
+        month_start = int(last_day.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()) * 1000
+        transactions = []
+        seen = set()
+        to_param = epoch
+        for _ in range(cls.MAX_PAGES_PER_MONTH):
+            page = cls.fetch_trans(cookie=cookie, device_id=device_id, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type, to_param=to_param)
+            new = [t for t in page if cls.trans_key(t) not in seen]
+            if not new:
+                break
+            for t in new:
+                seen.add(cls.trans_key(t))
+            transactions += new
+            oldest = min((t['startedDate'] for t in page if t.get('startedDate')), default=None)
+            if oldest is None or oldest < month_start or oldest >= to_param:
+                break
+            to_param = oldest
+        else:
+            logger.warning(f'Stopped after {cls.MAX_PAGES_PER_MONTH} pages; the start of the month may be missing')
+        return transactions
+
+    @staticmethod
+    def trans_key(t: dict) -> tuple:
+        return (t.get('id'), t.get('legId'))
 
     @classmethod
     def get_all_transactions(cls, cookie: str, device_id: str, pocket_id:str = '', wallet_id: str = '', account_type: str = '') -> list[dict]:
@@ -122,8 +156,12 @@ class WebRequests:
         '''
         transactions = []
         logger.info('Fetching all transactions')
+        seen = set()
         for epoch in cls.generate_dates():
-            transactions += cls.fetch_trans(cookie=cookie, device_id=device_id, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type, to_param=epoch)
+            for t in cls.fetch_month(cookie=cookie, device_id=device_id, epoch=epoch, pocket_id=pocket_id, wallet_id=wallet_id, account_type=account_type):
+                if cls.trans_key(t) not in seen:
+                    seen.add(cls.trans_key(t))
+                    transactions.append(t)
         return transactions
 
     @classmethod

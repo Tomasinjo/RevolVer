@@ -130,7 +130,7 @@ class TestRevolVer:
     @patch('revol_ver.write_outputs')
     def test_main(self, mock_write, mock_process, mock_db_func, mock_read, mock_opts):
         mock_opts.return_value = argparse.Namespace(
-            source='s', period='p', epoch=0, month=0, 
+            source='s', period='p', epoch=0, month=0, all_accounts=False,
             dont_deduplicate=False, output=['o'], filename='f'
         )
         mock_read.return_value = ([{}], 1)
@@ -210,7 +210,7 @@ class TestRevolVer:
     @patch('revol_ver.write_outputs')
     def test_main_process_returns_zero(self, mock_write, mock_process, mock_db_func, mock_read, mock_opts):
         mock_opts.return_value = argparse.Namespace(
-            source='s', period='p', epoch=0, month=0, 
+            source='s', period='p', epoch=0, month=0, all_accounts=False,
             dont_deduplicate=False, output=['o'], filename='f'
         )
         mock_read.return_value = ([{}], 1)
@@ -224,8 +224,34 @@ class TestRevolVer:
     @patch('revol_ver.Inputs.get_options')
     @patch('revol_ver.read_inputs')
     def test_main_no_inputs(self, mock_read, mock_opts):
-        mock_opts.return_value = argparse.Namespace(source='s', period='p', epoch=0)
+        mock_opts.return_value = argparse.Namespace(source='s', period='p', epoch=0, all_accounts=False)
         mock_read.return_value = ([], 0)
         
         revol_ver.main()
         # Should return early
+
+    @patch('revol_ver.Inputs.get_auth_data')
+    @patch('revol_ver.WebRequests.fetch_pockets')
+    @patch('revol_ver.WebRequests.get_all_transactions')
+    def test_read_inputs_all_accounts_loops_every_pocket(self, mock_all, mock_pockets, mock_auth):
+        'With --all-accounts every pocket id is fetched, not just the pasted one.'
+        mock_auth.return_value = (True, 'c', 'd', 'pasted', '', 'CURRENT')
+        mock_pockets.return_value = [{'id': 'p1', 'type': 'CURRENT', 'currency': 'CHF'},
+                                     {'id': 'p2', 'type': 'SAVINGS', 'currency': 'CHF'}]
+        mock_all.side_effect = [[{'id': 'a'}], [{'id': 'b'}, {'id': 'c'}]]
+        trans, count = revol_ver.read_inputs('web_request', 'all', 0, all_accounts=True)
+        assert count == 3
+        assert [c.kwargs['pocket_id'] for c in mock_all.call_args_list] == ['p1', 'p2']
+        assert all(c.kwargs['wallet_id'] == '' for c in mock_all.call_args_list)
+
+    @patch('revol_ver.Inputs.get_auth_data')
+    @patch('revol_ver.WebRequests.fetch_pockets')
+    @patch('revol_ver.WebRequests.get_monthly_transactions')
+    def test_read_inputs_all_accounts_monthly(self, mock_month, mock_pockets, mock_auth):
+        'The flag works for a single month too.'
+        mock_auth.return_value = (True, 'c', 'd', 'pasted', '', 'CURRENT')
+        mock_pockets.return_value = [{'id': 'p1', 'type': 'SAVINGS', 'currency': 'CHF'}]
+        mock_month.return_value = [{'id': 'a'}]
+        trans, count = revol_ver.read_inputs('web_request', 'month', 1700000000, all_accounts=True)
+        assert count == 1
+        assert mock_month.call_args.kwargs['epoch'] == 1700000000

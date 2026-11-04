@@ -133,3 +133,38 @@ class TestWebRequests:
                  # 2022: 12 months.
                  # 2023: Jan is included (current month)
                  assert len(dates) == 13
+
+    def test_fetch_pockets_returns_every_pocket_id(self):
+        'The wallet endpoint supplies the ids one request cannot reach.'
+        with patch('lib.web_requests.WebRequests.load_headers_from_curl', return_value={}):
+            with patch('lib.web_requests.requests.get') as mock_get:
+                mock_get.return_value.json.return_value = {'pockets': [
+                    {'id': 'p1', 'type': 'CURRENT', 'currency': 'CHF', 'state': 'ACTIVE'},
+                    {'id': 'p2', 'type': 'SAVINGS', 'currency': 'EUR', 'state': 'INACTIVE'},
+                    {'type': 'SAVINGS', 'currency': 'USD'},
+                ]}
+                pockets = WebRequests.fetch_pockets(cookie='c', device_id='d')
+        assert [p['id'] for p in pockets] == ['p1', 'p2']
+
+    def test_fetch_pockets_error_response_exits(self, caplog):
+        'An error payload stops the run instead of exporting nothing silently.'
+        with patch('lib.web_requests.WebRequests.load_headers_from_curl', return_value={}):
+            with patch('lib.web_requests.requests.get') as mock_get:
+                mock_get.return_value.json.return_value = {'message': 'Access token expired',
+                                                           'code': 9039}
+                with pytest.raises(SystemExit) as exc:
+                    WebRequests.fetch_pockets(cookie='c', device_id='d')
+        assert exc.value.code == 1
+        assert 'Access token expired' in caplog.text
+
+    def test_fetch_trans_flattens_card_fields(self):
+        'Card details from #20 are flattened onto the row.'
+        with patch('lib.web_requests.WebRequests.load_headers_from_curl', return_value={}):
+            with patch('lib.web_requests.requests.get') as mock_get:
+                mock_get.return_value.json.return_value = [
+                    {'id': '1', 'card': {'lastFour': '4321', 'label': 'Main card'}},
+                    {'id': '2'},
+                ]
+                rows = WebRequests.fetch_trans(cookie='c', device_id='d', wallet_id='w')
+        assert rows[0]['cardLastFour'] == '4321'
+        assert 'cardLastFour' not in rows[1]

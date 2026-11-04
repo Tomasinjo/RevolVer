@@ -38,6 +38,27 @@ class WebRequests:
             return {}
 
     @classmethod
+    def fetch_pockets(cls, cookie: str, device_id: str) -> list[dict]:
+        '''Every pocket on the profile, as the web app lists them.
+
+        One transactions request only ever covers the account whose id it carries,
+        so exporting a whole profile means knowing every pocket id. The web app
+        reads them from the wallet endpoint; so does this.
+        '''
+        url = "https://app.revolut.com/api/retail/user/current/wallet"
+        headers = cls.load_headers_from_curl()
+        headers['cookie'] = cookie
+        headers['x-device-id'] = device_id
+        response = requests.get(url, headers=headers, allow_redirects=True).json()
+        if not isinstance(response, dict) or 'pockets' not in response:
+            print('')
+            logger.error(f'Fetching pockets failed, got response\n{response}')
+            sys.exit(1)
+        pockets = [p for p in response['pockets'] if p.get('id')]
+        logger.info(f'Wallet lists {len(pockets)} pockets')
+        return pockets
+
+    @classmethod
     def fetch_trans(cls, cookie: str, device_id: str, pocket_id:str = '', wallet_id: str = '', account_type: str = '', to_param: int = 0) -> list[dict]:
         '''
         Simulates a request made by Revolut web app

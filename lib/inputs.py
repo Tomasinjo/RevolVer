@@ -162,6 +162,9 @@ class Inputs:
         parser.add_argument('-f', '--filename', help='Specify the output filename (without extension)')
         parser.add_argument('-dd', '--dont_deduplicate', action='store_true', help='Don\'t use database for deduplication')
         parser.add_argument('-en', '--escape-newlines', action='store_true', help='Escape newlines in CSV output')
+        parser.add_argument('-da', '--decimal-amounts', action='store_true',
+                            help='Divide amount, fee, balance, amountWithCharges and '
+                                 'counterpart_amount by 100, so 4000 is written as 40.00')
         parser.add_argument('-ly', '--lookback-years', type=int, default=None,
                             help='Years to look back when period is "all"; '
                                  'overrides AllImportLookBackYears in config.ini')

@@ -53,6 +53,13 @@ For initial export, you may want to export all records. Set `--period` to `all`.
 To choose the period for a single run without editing config.ini, pass `--lookback-years`:  
 `python revol_ver.py -p all --lookback-years 6`  
 
+Revolut returns money in the currency's minor unit, so an amount of `4000` means `40.00`. The
+export keeps the values as returned. Pass `--decimal-amounts` to divide `amount`, `fee`, `balance`, `amountWithCharges` and
+`counterpart_amount` by the currency's own factor, so `4000` CHF is written as `40.00`.
+Most currencies have two decimal places; JPY has none and KWD has three, and those are
+converted accordingly:  
+`python revol_ver.py -p all --decimal-amounts`  
+
 By default, it will save the transactions to SQLite database with filename `trans_db.sql` and Excel file to `exports/` directory. Change this by setting `--output` to either `db` or `excel`.  
 `python revol_ver.py -p all -o excel` 
 

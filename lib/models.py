@@ -7,6 +7,19 @@ from lib.inputs import Inputs
 logger = logging.getLogger('revol_ver')
 custom_categories_map = Inputs.get_ini_config('custom.categories')
 
+
+class UnknownCategoryError(Exception):
+    '''A custom Revolut category UUID is not mapped in config.ini.
+
+    Carries only the category UUID: the transaction itself is never put in the
+    message, so logs and tracebacks hold no transaction data.
+    '''
+
+    def __init__(self, category_id: str) -> None:
+        self.category_id = category_id
+        super().__init__(f'Category with ID {category_id} is not defined in config.ini')
+
+
 class TransactionModel(BaseModel):
     '''
     Represents a single Revolut transaction.
@@ -64,6 +77,6 @@ class TransactionModel(BaseModel):
             return cat
         pretty_cat = custom_categories_map.get(cat)
         if not pretty_cat:
-            raise Exception(f'\nCategory with ID {cat} was not found. Full transaction:\n{str(trans)}')
+            raise UnknownCategoryError(cat)
         logger.debug(f'Resolved category ID {cat} to {pretty_cat}')
         return pretty_cat

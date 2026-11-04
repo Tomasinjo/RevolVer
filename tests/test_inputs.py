@@ -325,3 +325,19 @@ class TestInputs:
                  mock_getitem.return_value = {'key': 'val'}
                  conf = Inputs.get_ini_config('section')
                  assert conf == {'key': 'val'}
+
+def test_curl_url_form_is_parsed():
+    'Browsers that copy `curl --url \'...\'` are accepted too.'
+    from lib.inputs import Inputs
+
+    curl = (
+        "curl --url 'https://app.revolut.com/api/retail/user/current/transactions/last"
+        "?count=500&internalPocketId=pocket-1' "
+        "-b 'cookie-value' "
+        "-H 'x-device-id: device-1'"
+    )
+    found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data_from_curl(curl)
+    assert found is True
+    assert pocket_id == 'pocket-1'
+    assert cookie == 'cookie-value'
+    assert device_id == 'device-1'

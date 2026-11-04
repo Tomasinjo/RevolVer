@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import revol_ver
 import argparse
+from lib import models
 
 from pathlib import Path
 
@@ -130,7 +131,7 @@ class TestRevolVer:
     @patch('revol_ver.write_outputs')
     def test_main(self, mock_write, mock_process, mock_db_func, mock_read, mock_opts):
         mock_opts.return_value = argparse.Namespace(
-            source='s', period='p', epoch=0, month=0, 
+            source='s', period='p', epoch=0, month=0, lookback_years=None, decimal_amounts=False,
             dont_deduplicate=False, output=['o'], filename='f'
         )
         mock_read.return_value = ([{}], 1)
@@ -210,7 +211,7 @@ class TestRevolVer:
     @patch('revol_ver.write_outputs')
     def test_main_process_returns_zero(self, mock_write, mock_process, mock_db_func, mock_read, mock_opts):
         mock_opts.return_value = argparse.Namespace(
-            source='s', period='p', epoch=0, month=0, 
+            source='s', period='p', epoch=0, month=0, lookback_years=None, decimal_amounts=False,
             dont_deduplicate=False, output=['o'], filename='f'
         )
         mock_read.return_value = ([{}], 1)
@@ -224,8 +225,78 @@ class TestRevolVer:
     @patch('revol_ver.Inputs.get_options')
     @patch('revol_ver.read_inputs')
     def test_main_no_inputs(self, mock_read, mock_opts):
-        mock_opts.return_value = argparse.Namespace(source='s', period='p', epoch=0)
+        mock_opts.return_value = argparse.Namespace(source='s', period='p', epoch=0, lookback_years=None, decimal_amounts=False)
         mock_read.return_value = ([], 0)
         
         revol_ver.main()
         # Should return early
+
+    def test_process_reports_every_unknown_category_once(self):
+        'Two undeclared categories are reported together, not one per run.'
+        from lib.models import UnknownCategoryError
+
+        first = '11111111-2222-3333-4444-555555555555'
+        second = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+
+        def base(category, leg):
+            return {
+                'id': leg, 'legId': leg, 'type': 'CARD_PAYMENT', 'state': 'COMPLETED',
+                'startedDate': 1672531200000, 'currency': 'EUR', 'amount': 10.0,
+                'tag': 'general', 'category': category, 'account': {'id': 'acc1'},
+            }
+
+        with patch.dict(models.custom_categories_map, {}, clear=True):
+            with pytest.raises(UnknownCategoryError) as exc:
+                revol_ver.process([base(first, 'leg1'), base(second, 'leg2'),
+                                   base(first, 'leg3')], 'all', 0)
+        message = str(exc.value)
+        assert '2 custom category ID(s)' in message
+        assert first in message and second in message
+        assert 'your_category_name' in message
+
+
+    def test_to_decimal_amounts_divides_only_money_fields(self):
+        'Monetary fields are scaled; everything else is left alone.'
+        rows = [{'amount': -4000, 'fee': 50, 'balance': 12100,
+                 'amountWithCharges': -4050, 'counterpart_amount': None,
+                 'id': 'x', 'rate': 1.07}]
+        out = revol_ver.to_decimal_amounts(rows)
+        assert out[0]['amount'] == -40.0
+        assert out[0]['fee'] == 0.5
+        assert out[0]['balance'] == 121.0
+        assert out[0]['amountWithCharges'] == -40.5
+        assert out[0]['counterpart_amount'] is None
+        assert out[0]['id'] == 'x' and out[0]['rate'] == 1.07
+
+    @patch('revol_ver.Inputs.get_options')
+    @patch('revol_ver.read_inputs')
+    @patch('revol_ver.db_instance_and_existing_records')
+    @patch('revol_ver.process')
+    @patch('revol_ver.write_outputs')
+    def test_main_scales_when_flag_is_set(self, mock_write, mock_process, mock_db, mock_read, mock_opts):
+        'With --decimal-amounts the rows reaching the writer are scaled.'
+        mock_opts.return_value = argparse.Namespace(
+            source='s', period='all', epoch=0, month=0, lookback_years=None,
+            decimal_amounts=True, dont_deduplicate=False, output=['o'], filename='f')
+        mock_read.return_value = ([{}], 1)
+        mock_db.return_value = ([], MagicMock())
+        mock_process.return_value = ([{'amount': 2500}], 1)
+        revol_ver.main()
+        assert mock_write.call_args.args[0] == [{'amount': 25.0}]
+
+
+    def test_to_decimal_amounts_follows_the_currency(self):
+        'JPY has no decimal places and KWD has three; neither is a divide by 100.'
+        rows = [
+            {'currency': 'CHF', 'amount': -4000, 'fee': 50},
+            {'currency': 'JPY', 'amount': 4000, 'fee': 0},
+            {'currency': 'KWD', 'amount': 4000, 'fee': None},
+            {'currency': 'EUR', 'amount': 1000, 'counterpart_currency': 'JPY',
+             'counterpart_amount': 1500},
+        ]
+        out = revol_ver.to_decimal_amounts(rows)
+        assert out[0]['amount'] == -40.0 and out[0]['fee'] == 0.5
+        assert out[1]['amount'] == 4000          # yen are already whole units
+        assert out[2]['amount'] == 4.0           # three decimal places
+        assert out[3]['amount'] == 10.0
+        assert out[3]['counterpart_amount'] == 1500   # scaled by its own currency

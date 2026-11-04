@@ -160,6 +160,9 @@ class Inputs:
         parser.add_argument('-o', '--output', choices=['db', 'excel', 'csv', 'all'], default='all', help='Output destinations')
         parser.add_argument('-f', '--filename', help='Specify the output filename (without extension)')
         parser.add_argument('-dd', '--dont_deduplicate', action='store_true', help='Don\'t use database for deduplication')
+        parser.add_argument('-aa', '--all-accounts', action='store_true',
+                            help='Export every pocket on the profile, read from the wallet '
+                                 'endpoint, instead of only the account in curlcmd.txt')
         parser.add_argument('-en', '--escape-newlines', action='store_true', help='Escape newlines in CSV output')
 
         args = parser.parse_args()

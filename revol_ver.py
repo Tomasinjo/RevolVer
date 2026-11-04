@@ -11,12 +11,36 @@ from lib.logg import Logging
 logger: Logger
 
 
-def read_inputs(source: str, period: str, epoch: int) -> tuple[list[dict], int]:
+def fetch_for_account(period: str, epoch: int, cookie: str, device_id: str,
+                      pocket_id: str, wallet_id: str, account_type: str) -> list[dict]:
+    if period == 'month':
+        return WebRequests.get_monthly_transactions(cookie=cookie,
+                                                    device_id=device_id,
+                                                    pocket_id=pocket_id,
+                                                    wallet_id=wallet_id,
+                                                    account_type=account_type,
+                                                    epoch=epoch)
+    return WebRequests.get_all_transactions(cookie=cookie,
+                                            device_id=device_id,
+                                            pocket_id=pocket_id,
+                                            wallet_id=wallet_id,
+                                            account_type=account_type)
+
+def read_inputs(source: str, period: str, epoch: int,
+                all_accounts: bool = False) -> tuple[list[dict], int]:
     transactions: list = []
     count: int = 0
     if source == 'web_request':
         found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data(abs_root_path)
         if not found:
+            return transactions, count
+        if all_accounts:
+            # The pasted session covers the whole profile; only the account id in
+            # the request changes, so one paste can export every pocket.
+            for pocket in WebRequests.fetch_pockets(cookie, device_id):
+                transactions += fetch_for_account(period, epoch, cookie, device_id,
+                                                  pocket['id'], '', pocket.get('type', ''))
+            count = len(transactions)
             return transactions, count
         if period == 'month':
             transactions = WebRequests.get_monthly_transactions(cookie=cookie,
@@ -88,7 +112,8 @@ def db_instance_and_existing_records(dont_deduplicate: bool,
 
 def main() -> None:
     options = Inputs.get_options()
-    transactions, count = read_inputs(options.source, options.period, options.epoch)
+    transactions, count = read_inputs(options.source, options.period, options.epoch,
+                                      options.all_accounts)
     if count == 0:
         return
     existing_ids, db_output = db_instance_and_existing_records(options.dont_deduplicate,

@@ -73,7 +73,8 @@ class TestTransactionModel:
          with patch.dict(models.custom_categories_map, {}, clear=True):
              with pytest.raises(Exception) as exc:
                  models.TransactionModel(**data)
-             assert f'Category with ID {uuid_like} was not found' in str(exc.value)
+             assert f'Category with ID {uuid_like} is not defined in config.ini' in str(exc.value)
+             assert exc.value.category_id == uuid_like
 
     def test_date_conversion_none(self, caplog):
         # Test when date is None/0
@@ -155,3 +156,25 @@ class TestTransactionModel:
         }
         model = models.TransactionModel(**data)
         assert model.category == 'normal-category'
+
+
+def test_unknown_custom_category_reports_only_the_id():
+    'An undeclared custom category names the UUID and no transaction data.'
+    from lib.models import TransactionModel, UnknownCategoryError
+
+    transaction = {
+        'id': 'id-1', 'legId': 'leg-1', 'type': 'CARD_PAYMENT', 'state': 'COMPLETED',
+        'startedDate': 1700000000000, 'updatedDate': 1700000000000,
+        'completedDate': 1700000000000, 'createdDate': 1700000000000,
+        'currency': 'EUR', 'amount': -12.34, 'fee': 0.0, 'balance': 100.0,
+        'description': 'Some payee', 'tag': 'shopping',
+        'category': '11111111-2222-3333-4444-555555555555',
+    }
+    try:
+        TransactionModel(**transaction)
+    except UnknownCategoryError as exc:
+        assert exc.category_id == '11111111-2222-3333-4444-555555555555'
+        assert 'Some payee' not in str(exc)
+        assert '12.34' not in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError('expected UnknownCategoryError')

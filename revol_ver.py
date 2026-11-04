@@ -3,7 +3,7 @@ from logging import Logger
 from pathlib import Path
 
 from lib.outputs import OutputsDB, OutputsExcel, OutputsCsv
-from lib.models import TransactionModel
+from lib.models import TransactionModel, UnknownCategoryError
 from lib.inputs import Inputs
 from lib.web_requests import WebRequests
 from lib.logg import Logging
@@ -11,7 +11,8 @@ from lib.logg import Logging
 logger: Logger
 
 
-def read_inputs(source: str, period: str, epoch: int) -> tuple[list[dict], int]:
+def read_inputs(source: str, period: str, epoch: int,
+                lookback_years: int | None = None) -> tuple[list[dict], int]:
     transactions: list = []
     count: int = 0
     if source == 'web_request':
@@ -30,7 +31,8 @@ def read_inputs(source: str, period: str, epoch: int) -> tuple[list[dict], int]:
                                                             device_id=device_id,
                                                             pocket_id=pocket_id,
                                                             wallet_id=wallet_id,
-                                                            account_type=account_type)
+                                                            account_type=account_type,
+                                                            lookback_years=lookback_years)
     elif source == 'file':
         transactions = Inputs.read_json_file(abs_root_path, 'rev.json')
     count = len(transactions)
@@ -43,8 +45,13 @@ def process(trans: list[dict], period: str, month: int, existing_ids: list[str] 
     duplicates = []
     transactions = []
     not_correct_month = []
+    unknown_categories: set[str] = set()
     for t in trans:
-        transaction = TransactionModel(**t)
+        try:
+            transaction = TransactionModel(**t)
+        except UnknownCategoryError as exc:
+            unknown_categories.add(exc.category_id)
+            continue
         if transaction.legId in existing_ids:
             duplicates.append(transaction.legId)
             continue
@@ -53,6 +60,12 @@ def process(trans: list[dict], period: str, month: int, existing_ids: list[str] 
             continue
         transactions.append(transaction)
         existing_ids.append(transaction.legId)
+    if unknown_categories:
+        listing = '\n'.join(f'{cat} = your_category_name' for cat in sorted(unknown_categories))
+        raise UnknownCategoryError(
+            f'{len(unknown_categories)} custom category ID(s) are not defined in config.ini. '
+            f'Add them all under [custom.categories] and run again:\n{listing}'
+        )
     count_success = len(transactions)
     Logging.log_process(duplicates, not_correct_month, count_all, count_success)
     return [t.__dict__ for t in transactions], count_success
@@ -88,7 +101,8 @@ def db_instance_and_existing_records(dont_deduplicate: bool,
 
 def main() -> None:
     options = Inputs.get_options()
-    transactions, count = read_inputs(options.source, options.period, options.epoch)
+    transactions, count = read_inputs(options.source, options.period, options.epoch,
+                                      options.lookback_years)
     if count == 0:
         return
     existing_ids, db_output = db_instance_and_existing_records(options.dont_deduplicate,

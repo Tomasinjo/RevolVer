@@ -69,8 +69,9 @@ class Inputs:
         wallet_id: str = ''
         account_type: str = ''
         
-        # Extract URL - works for both bash ('url') and cmd ("url")
-        url_match = re.search(r"curl\s+['\"]([^'\"]+)", curl_content)
+        # Extract URL - works for both bash ('url') and cmd ("url"),
+        # and for the `curl --url 'url'` form some browsers copy.
+        url_match = re.search(r"curl\s+(?:--url\s+)?['\"]([^'\"]+)", curl_content)
         if not url_match:
             logger.error('Could not find URL in curl command')
             return False, '', '', '', '', ''
@@ -161,6 +162,9 @@ class Inputs:
         parser.add_argument('-f', '--filename', help='Specify the output filename (without extension)')
         parser.add_argument('-dd', '--dont_deduplicate', action='store_true', help='Don\'t use database for deduplication')
         parser.add_argument('-en', '--escape-newlines', action='store_true', help='Escape newlines in CSV output')
+        parser.add_argument('-ly', '--lookback-years', type=int, default=None,
+                            help='Years to look back when period is "all"; '
+                                 'overrides AllImportLookBackYears in config.ini')
 
         args = parser.parse_args()
         args.epoch = 0

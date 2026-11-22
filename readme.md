@@ -50,6 +50,12 @@ At minimum, only `--date` must be provided to fetch results for single month and
 For initial export, you may want to export all records. Set `--period` to `all`. Also make sure to edit setting `AllImportLookBackYears` in config.ini to desired export period.  
 `python revol_ver.py -p all`  
 
+One pasted cURL only covers the account whose id it carries, so a profile with pockets or
+savings accounts needs one paste per account. To export everything from a single paste, add
+`--all-accounts`: the wallet endpoint is read once for every pocket id, and each one is then
+fetched in turn.  
+`python revol_ver.py -p all --all-accounts`  
+
 By default, it will save the transactions to SQLite database with filename `trans_db.sql` and Excel file to `exports/` directory. Change this by setting `--output` to either `db` or `excel`.  
 `python revol_ver.py -p all -o excel` 
 

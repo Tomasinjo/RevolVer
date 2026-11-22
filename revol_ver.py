@@ -33,7 +33,10 @@ def read_inputs(source: str, period: str, epoch: int,
     if source == 'web_request':
         found, cookie, device_id, pocket_id, wallet_id, account_type = Inputs.get_auth_data(abs_root_path)
         if not found:
-            return transactions, count
+            raise SystemExit('No usable authentication data: copy a fresh cURL into curlcmd.txt')
+        if not all_accounts and not (pocket_id or wallet_id):
+            raise SystemExit('The cURL names no pocket or wallet: copy one from a pocket\'s '
+                             'transactions, or pass --all-accounts')
         if all_accounts:
             # The pasted session covers the whole profile; only the account id in
             # the request changes, so one paste can export every pocket.

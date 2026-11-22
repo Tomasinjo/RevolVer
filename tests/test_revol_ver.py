@@ -40,8 +40,14 @@ class TestRevolVer:
     def test_read_inputs_web_auth_fail(self, mock_get_auth):
         mock_get_auth.return_value = (False, '', '', '', '', '')
         
-        trans, count = revol_ver.read_inputs('web_request', 'month', 123)
-        assert count == 0
+        with pytest.raises(SystemExit, match='No usable authentication data'):
+            revol_ver.read_inputs('web_request', 'month', 123)
+
+    def test_read_inputs_needs_an_id_without_all_accounts(self):
+        'A cURL with no pocket or wallet id exports nothing by itself: say so, do not exit 0.'
+        with patch('lib.inputs.Inputs.get_auth_data', return_value=(True, 'c', 'd', '', '', '')):
+            with pytest.raises(SystemExit, match='names no pocket or wallet'):
+                revol_ver.read_inputs('web_request', 'month', 0)
 
     @patch('lib.inputs.Inputs.read_json_file')
     def test_read_inputs_file(self, mock_read_json):
@@ -195,7 +201,7 @@ class TestRevolVer:
         
     def test_read_inputs_unknown_period(self):
         # Defensive test
-        with patch('lib.inputs.Inputs.get_auth_data', return_value=(True,'','','','','')):
+        with patch('lib.inputs.Inputs.get_auth_data', return_value=(True,'','','p','','')):
             trans, count = revol_ver.read_inputs('web_request', 'unknown', 0)
             assert count == 0
 

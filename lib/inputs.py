@@ -102,7 +102,10 @@ class Inputs:
         if referer_match:
             account_type = referer_match.group(1)
         
-        if cookie and device_id and (pocket_id or wallet_id):
+        # The session is cookie + device id. A pocket or wallet id is needed only to
+        # export the one account the cURL points at; --all-accounts reads every id
+        # from the wallet, so a cURL copied from the general transaction list will do.
+        if cookie and device_id:
             logger.info('Authentication data parsed successfully from curl command')
             logger.debug(f'Authentication data: \ncookie length: {len(cookie)}\ndevice_id: {device_id}\npocket_id: {pocket_id}\nwallet_id: {wallet_id}\naccount_type: {account_type}')
             return True, cookie, device_id, pocket_id, wallet_id, account_type

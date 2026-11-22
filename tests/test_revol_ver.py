@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import revol_ver
 import argparse
+from datetime import datetime
 
 from pathlib import Path
 
@@ -229,3 +230,32 @@ class TestRevolVer:
         
         revol_ver.main()
         # Should return early
+
+    def test_process_month_filter_checks_the_year(self):
+        'November 2022 is not November 2026: -p month keeps only the asked year.'
+        def row(leg, started):
+            return {'id': leg, 'legId': leg, 'type': 'TRANSFER', 'state': 'COMPLETED',
+                    'startedDate': started, 'currency': 'CHF', 'amount': 10.0,
+                    'tag': 'general', 'category': 'general', 'account': {'id': 'acc1'}}
+        nov_2026 = int(datetime(2026, 11, 5, 12).timestamp()) * 1000
+        nov_2022 = int(datetime(2022, 11, 5, 12).timestamp()) * 1000
+        processed, count = revol_ver.process([row('a', nov_2026), row('b', nov_2022)],
+                                             'month', 11, [], 2026)
+        assert count == 1 and processed[0]['legId'] == 'a'
+
+    @patch('revol_ver.Inputs.get_options')
+    @patch('revol_ver.read_inputs')
+    @patch('revol_ver.db_instance_and_existing_records')
+    @patch('revol_ver.process')
+    @patch('revol_ver.write_outputs')
+    def test_main_passes_the_year_of_the_month(self, mock_write, mock_process, mock_db, mock_read, mock_opts):
+        'main() derives the year from the month epoch and hands it to process().'
+        epoch = int(datetime(2026, 11, 30, 23, 59, 59).timestamp()) * 1000
+        mock_opts.return_value = argparse.Namespace(
+            source='s', period='month', epoch=epoch, month=11,
+            dont_deduplicate=False, output=['o'], filename='f')
+        mock_read.return_value = ([{}], 1)
+        mock_db.return_value = ([], MagicMock())
+        mock_process.return_value = ([], 0)
+        revol_ver.main()
+        assert mock_process.call_args.args[4] == 2026
